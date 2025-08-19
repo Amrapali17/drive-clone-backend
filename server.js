@@ -1,4 +1,4 @@
-// server.js
+ // server.js
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -10,9 +10,23 @@ const fileRoutes = require("./routes/files");
 
 const app = express();
 
-// CORS configuration: allow your frontend deployed on Vercel
+// List all allowed frontend URLs
+const allowedOrigins = [
+  "https://drive-clone-livid.vercel.app", 
+  "https://drive-clone-fnrd3pkt4-amrapalis-projects-7cb31848.vercel.app",
+  "https://drive-clone-git-main-amrapalis-projects-7cb31848.vercel.app"
+];
+
+// CORS configuration
 const corsOptions = {
-  origin: ["https://drive-clone-livid.vercel.app"], // Vercel frontend URL
+  origin: function(origin, callback) {
+    // allow requests with no origin (like Postman or curl)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 };
@@ -20,12 +34,12 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// API Routes (relative paths, not full URLs!)
+// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/folders", folderRoutes);
 app.use("/api/files", fileRoutes);
 
-// Health check
+// Health check route
 app.get("/", (req, res) => {
   res.send("Drive Clone Backend is running ✅");
 });
