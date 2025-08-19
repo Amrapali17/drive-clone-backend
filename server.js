@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -9,21 +10,17 @@ const fileRoutes = require("./routes/files");
 
 const app = express();
 
-// Middleware
-const allowedOrigins = [
-  "https://drive-clone-frontend.vercel.app",
-  "http://localhost:5173" // optional for local dev
-];
+// CORS configuration: allow your frontend deployed on Vercel
+const corsOptions = {
+  origin: ["https://drive-clone-livid.vercel.app"], // Vercel frontend URL
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+};
 
-app.use(cors({
-  origin: allowedOrigins,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
-
+app.use(cors(corsOptions));
 app.use(express.json());
 
-// API Routes
+// API Routes (relative paths, not full URLs!)
 app.use("/api/auth", authRoutes);
 app.use("/api/folders", folderRoutes);
 app.use("/api/files", fileRoutes);
@@ -32,13 +29,6 @@ app.use("/api/files", fileRoutes);
 app.get("/", (req, res) => {
   res.send("Drive Clone Backend is running ✅");
 });
-
-// Handle preflight requests globally
-app.options("*", cors({
-  origin: allowedOrigins,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
 
 // Global error handler
 app.use((err, req, res, next) => {
