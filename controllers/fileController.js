@@ -1,7 +1,6 @@
 const supabase = require("../db");
-const fs = require("fs");
 
-// Get all files for the logged-in user
+// ===== List all files for the logged-in user =====
 exports.getFiles = async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -10,97 +9,93 @@ exports.getFiles = async (req, res) => {
       .eq("owner_id", req.user.id)
       .eq("is_deleted", false);
 
-    if (error) return res.status(400).json({ error: error.message });
-
-    res.json(data); // return array directly for frontend
+    if (error) throw error;
+    res.json(data);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Upload a file
+// ===== Upload a file (metadata only) =====
 exports.uploadFile = async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-
-  const { folderId } = req.body;
-  const { originalname, mimetype, size, path: storagePath } = req.file;
-
   try {
+    const { name, folder_id = null } = req.body;
+
+    if (!name) return res.status(400).json({ error: "File name required" });
+
     const { data, error } = await supabase
       .from("files")
       .insert([{
-        name: originalname,
-        folder_id: folderId || null,
+        name,
         owner_id: req.user.id,
-        size,
-        mime_type: mimetype,
-        storage_path: storagePath
+        folder_id,
+        is_deleted: false,
+        created_at: new Date()
       }])
       .select()
       .single();
 
-    if (error) return res.status(400).json({ error: error.message });
-
-    // Fetch updated file list after upload
-    const { data: files, error: fetchError } = await supabase
-      .from("files")
-      .select("*")
-      .eq("owner_id", req.user.id)
-      .eq("is_deleted", false);
-
-    if (fetchError) return res.status(400).json({ error: fetchError.message });
-
-    res.json(files); // return full array of files
+    if (error) throw error;
+    res.json(data);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Soft delete a file
+// ===== Soft delete a file =====
 exports.deleteFile = async (req, res) => {
-  const fileId = req.params.id;
   try {
-    const { data, error } = await supabase
+    const { id } = req.params;
+
+    const { data: file, error } = await supabase
+      .from("files")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error || !file) return res.status(404).json({ error: "File not found" });
+    if (file.owner_id !== req.user.id) return res.status(403).json({ error: "Forbidden" });
+
+    const { error: updateErr } = await supabase
       .from("files")
       .update({ is_deleted: true })
-      .eq("id", fileId)
-      .eq("owner_id", req.user.id)
-      .select()
-      .single();
+      .eq("id", id);
 
-    if (error || !data) return res.status(400).json({ error: "File not found or cannot delete" });
+    if (updateErr) throw updateErr;
 
-    res.json({ message: "File soft deleted", file: data });
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Hard delete a file
+// ===== Hard delete a file =====
 exports.hardDeleteFile = async (req, res) => {
-  const fileId = req.params.id;
   try {
-    const { data, error } = await supabase
+    const { id } = req.params;
+
+    const { data: file, error } = await supabase
       .from("files")
       .select("*")
-      .eq("id", fileId)
-      .eq("owner_id", req.user.id)
+      .eq("id", id)
       .single();
 
-    if (error || !data) return res.status(400).json({ error: "File not found or cannot delete" });
+    if (error || !file) return res.status(404).json({ error: "File not found" });
+    if (file.owner_id !== req.user.id) return res.status(403).json({ error: "Forbidden" });
 
-    fs.unlink(data.storage_path, (err) => {
-      if (err) console.error("File removal error:", err);
-    });
+    const { error: deleteErr } = await supabase
+      .from("files")
+      .delete()
+      .eq("id", id);
 
-    await supabase.from("files").delete().eq("id", fileId);
+    if (deleteErr) throw deleteErr;
 
-    res.json({ message: "File permanently deleted" });
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: err.message });
   }
 };

@@ -1,51 +1,42 @@
-const supabase = require("../db");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const supabase = require("../db");
 
-// Signup user
+// ===== Generate JWT =====
+function generateToken(user) {
+  return jwt.sign(
+    { id: user.id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+}
+
+// ===== Signup =====
 exports.signup = async (req, res) => {
-  const { fullName, email, password } = req.body;
-
-  // Basic input validation
-  if (!fullName || !email || !password) {
-    return res.status(400).json({ error: "Full name, email, and password are required." });
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return res.status(400).json({ error: "Invalid email format." });
-  }
-
-  if (password.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters long." });
-  }
-
   try {
-    // Check if email already exists
-    const { data: existingUser } = await supabase
+    const { fullName, email, password } = req.body;
+    if (!fullName || !email || !password)
+      return res.status(400).json({ error: "All fields required" });
+
+    const { data: existing } = await supabase
       .from("users")
-      .select("*")
+      .select("id")
       .eq("email", email)
       .single();
 
-    if (existingUser) {
-      return res.status(400).json({ error: "Email is already registered." });
-    }
+    if (existing) return res.status(400).json({ error: "Email already exists" });
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hash = await bcrypt.hash(password, 10);
 
-    // Insert user into DB
     const { data, error } = await supabase
       .from("users")
-      .insert([{ full_name: fullName, email, password_hash: hashedPassword }])
+      .insert([{ full_name: fullName, email, password_hash: hash }])
       .select()
       .single();
 
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) throw error;
 
-    // Generate JWT token
-    const token = jwt.sign({ id: data.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    const token = generateToken(data);
 
     res.json({ user: { id: data.id, email: data.email, fullName: data.full_name }, token });
   } catch (err) {
@@ -54,29 +45,25 @@ exports.signup = async (req, res) => {
   }
 };
 
-// Login user
+// ===== Login =====
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) return res.status(400).json({ error: "Email and password are required." });
-
   try {
-    const { data, error } = await supabase
+    const { email, password } = req.body;
+
+    const { data: user, error } = await supabase
       .from("users")
       .select("*")
       .eq("email", email)
       .single();
 
-    if (error || !data) return res.status(400).json({ error: "Invalid credentials." });
+    if (error || !user) return res.status(400).json({ error: "Invalid credentials" });
 
-    // Compare passwords
-    const validPassword = await bcrypt.compare(password, data.password_hash);
-    if (!validPassword) return res.status(400).json({ error: "Invalid credentials." });
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return res.status(400).json({ error: "Invalid credentials" });
 
-    // Generate JWT token
-    const token = jwt.sign({ id: data.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    const token = generateToken(user);
 
-    res.json({ user: { id: data.id, email: data.email, fullName: data.full_name }, token });
+    res.json({ user: { id: user.id, email: user.email, fullName: user.full_name }, token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
