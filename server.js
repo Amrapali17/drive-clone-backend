@@ -21,7 +21,6 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (Postman, curl)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -34,6 +33,14 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// ----------------------
+// 🔍 Environment Debug (REMOVE after testing!)
+// ----------------------
+console.log("🔍 ENV CHECK:");
+console.log("SUPABASE_URL:", process.env.SUPABASE_URL || "❌ Missing");
+console.log("SUPABASE_SERVICE_ROLE_KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "✅ Loaded" : "❌ Missing");
+console.log("JWT_SECRET:", process.env.JWT_SECRET ? "✅ Loaded" : "❌ Missing");
 
 // ----------------------
 // API Routes
