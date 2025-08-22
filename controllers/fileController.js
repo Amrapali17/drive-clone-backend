@@ -45,11 +45,12 @@ exports.uploadFile = async (req, res) => {
         name: file.originalname,
         owner_id: req.user.id,
         folder_id,
-        size: file.size,           // ✅ required field
-        mime_type: file.mimetype,  // ✅ required field
+        size: file.size,               // required
+        mime_type: file.mimetype,      // required
+        path: storageData.path,        // optional
+        storage_path: storageData.path, // required
         is_deleted: false,
-        created_at: new Date(),
-        path: storageData.path
+        created_at: new Date()
       }])
       .select()
       .single();
