@@ -47,8 +47,8 @@ exports.uploadFile = async (req, res) => {
         folder_id,
         size: file.size,               // required
         mime_type: file.mimetype,      // required
-        path: storageData.path,        // optional
-        storage_path: storageData.path, // required
+        storage_path: `uploads/${file.originalname}`, // required
+        path: storageData.path || null,
         is_deleted: false,
         created_at: new Date()
       }])
