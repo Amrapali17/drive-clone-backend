@@ -20,14 +20,20 @@ exports.getFiles = async (req, res) => {
 // ===== Upload a file =====
 exports.uploadFile = async (req, res) => {
   try {
-    const { folder_id = null } = req.body;
     const file = req.file;
+    let { folder_id } = req.body;
+
+    console.log("Upload request body:", req.body);
+    console.log("File received:", file);
 
     if (!file) return res.status(400).json({ error: "File is required" });
 
+    // Convert empty string folder_id to null
+    if (!folder_id) folder_id = null;
+
     // Upload file to Supabase Storage
     const { data: storageData, error: storageError } = await supabase.storage
-      .from("drive-uploads") // your bucket name
+      .from("drive-uploads") // bucket name
       .upload(`uploads/${file.originalname}`, file.buffer, { upsert: true });
 
     if (storageError) throw storageError;
@@ -50,7 +56,7 @@ exports.uploadFile = async (req, res) => {
 
     res.json({ message: "File uploaded successfully", file: data });
   } catch (err) {
-    console.error(err);
+    console.error("Upload Error:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -103,7 +109,7 @@ exports.hardDeleteFile = async (req, res) => {
 
     if (deleteErr) throw deleteErr;
 
-    // Optional: delete from Supabase storage
+    // Delete from Supabase storage
     await supabase.storage.from("drive-uploads").remove([`uploads/${file.name}`]);
 
     res.json({ success: true });
