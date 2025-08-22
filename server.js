@@ -14,6 +14,7 @@ const app = express();
 // CORS Setup
 // ----------------------
 const allowedOrigins = [
+  "http://localhost:5173", // local frontend for testing
   "https://drive-clone-livid.vercel.app",
   "https://drive-clone-fnrd3pkt4-amrapalis-projects-7cb31848.vercel.app",
   "https://drive-clone-git-main-amrapalis-projects-7cb31848.vercel.app",
