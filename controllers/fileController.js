@@ -17,27 +17,38 @@ exports.getFiles = async (req, res) => {
   }
 };
 
-// ===== Upload a file (metadata only) =====
+// ===== Upload a file =====
 exports.uploadFile = async (req, res) => {
   try {
-    const { name, folder_id = null } = req.body;
+    const { folder_id = null } = req.body;
+    const file = req.file;
 
-    if (!name) return res.status(400).json({ error: "File name required" });
+    if (!file) return res.status(400).json({ error: "File is required" });
 
+    // Upload file to Supabase Storage
+    const { data: storageData, error: storageError } = await supabase.storage
+      .from("drive-uploads") // your bucket name
+      .upload(`uploads/${file.originalname}`, file.buffer, { upsert: true });
+
+    if (storageError) throw storageError;
+
+    // Save file metadata in database
     const { data, error } = await supabase
       .from("files")
       .insert([{
-        name,
+        name: file.originalname,
         owner_id: req.user.id,
         folder_id,
         is_deleted: false,
-        created_at: new Date()
+        created_at: new Date(),
+        path: storageData.path
       }])
       .select()
       .single();
 
     if (error) throw error;
-    res.json(data);
+
+    res.json({ message: "File uploaded successfully", file: data });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -48,7 +59,6 @@ exports.uploadFile = async (req, res) => {
 exports.deleteFile = async (req, res) => {
   try {
     const { id } = req.params;
-
     const { data: file, error } = await supabase
       .from("files")
       .select("*")
@@ -76,7 +86,6 @@ exports.deleteFile = async (req, res) => {
 exports.hardDeleteFile = async (req, res) => {
   try {
     const { id } = req.params;
-
     const { data: file, error } = await supabase
       .from("files")
       .select("*")
@@ -86,12 +95,16 @@ exports.hardDeleteFile = async (req, res) => {
     if (error || !file) return res.status(404).json({ error: "File not found" });
     if (file.owner_id !== req.user.id) return res.status(403).json({ error: "Forbidden" });
 
+    // Delete from database
     const { error: deleteErr } = await supabase
       .from("files")
       .delete()
       .eq("id", id);
 
     if (deleteErr) throw deleteErr;
+
+    // Optional: delete from Supabase storage
+    await supabase.storage.from("drive-uploads").remove([`uploads/${file.name}`]);
 
     res.json({ success: true });
   } catch (err) {

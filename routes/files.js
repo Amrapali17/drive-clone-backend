@@ -1,12 +1,21 @@
-const express = require("express");
+\const express = require("express");
 const multer = require("multer");
 const authenticateToken = require("../middleware/auth");
-const { getFiles, uploadFile, deleteFile, hardDeleteFile } = require("../controllers/fileController");
+const {
+  getFiles,
+  uploadFile,
+  deleteFile,
+  hardDeleteFile
+} = require("../controllers/fileController");
 
 const router = express.Router();
-const upload = multer({ dest: "uploads/" });
 
-// Get all files
+// Use memory storage to access file buffer
+const upload = multer({ storage: multer.memoryStorage() });
+
+// ===== Routes =====
+
+// List all files
 router.get("/", authenticateToken, getFiles);
 
 // Upload a file
