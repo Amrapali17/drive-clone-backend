@@ -38,7 +38,7 @@ exports.uploadFile = async (req, res) => {
 
     if (storageError) throw storageError;
 
-    // Save file metadata in database (added size field)
+    // Save file metadata in database
     const { data, error } = await supabase
       .from("files")
       .insert([{
@@ -46,6 +46,7 @@ exports.uploadFile = async (req, res) => {
         owner_id: req.user.id,
         folder_id,
         size: file.size,           // ✅ required field
+        mime_type: file.mimetype,  // ✅ required field
         is_deleted: false,
         created_at: new Date(),
         path: storageData.path
